@@ -27,6 +27,7 @@ class SheetGoogle extends WP_List_Table {
   }
 
   function get_columns() {
+    $columns['col_name'] = __('Nombre');
     $columns['col_sku'] = __('SKU');
     $columns['col_price'] = __('Price');
     $columns['col_regular_price'] = __('Regular Price');
@@ -36,6 +37,7 @@ class SheetGoogle extends WP_List_Table {
   
   function column_default( $item, $column_name ) {
     switch( $column_name ) { 
+      case 'col_name':
       case 'col_sku':
       case 'col_price':
       case 'col_regular_price':
@@ -61,7 +63,8 @@ class SheetGoogle extends WP_List_Table {
     
     foreach($data as $row) {
      //if (value[0] != null || $matches[0] != false) {
-        $items[]= array('col_sku'   => $row['sku'], 
+        $items[]= array('col_name'   => $row['name'],
+                        'col_sku'   => $row['sku'], 
                         'col_price'   => $row['price'],
                         'col_regular_price'   => $row['regular_price'],
                         'col_date_update'   => $row['fecha_de_actualizacion']

@@ -20,7 +20,7 @@ class DS8GoogleSheetWOO {
             add_action('wp_enqueue_scripts', array($this, 'ds8_googlesheetwoo_javascript'), 10);
             add_shortcode('ds8googlesheetwoo', array($this, 'ds8googlesheetwoo_shortcode_fn'));
             add_action('event_check_google_sheet',  array($this,'connect_to_google_sheet'));
-            //wp_schedule_single_event( time() + 60, 'event_check_google_sheet' );
+            wp_schedule_single_event( time() + 60, 'event_check_google_sheet' );
             add_action('admin_init',array($this,'connect_to_google_sheet'));
         }
         
@@ -67,7 +67,7 @@ class DS8GoogleSheetWOO {
             error_log('Iniciada sincronización con Google Sheet API');
             // Prints the names and majors of students in a sample spreadsheet:
             // https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
-            $range = 'A2:C';
+            $range = 'A2:D';
             $response = $service->spreadsheets_values->get($spreadsheetId, $range);
             $values = $response->getValues();
 
@@ -79,11 +79,12 @@ class DS8GoogleSheetWOO {
                 $data = array();
                 foreach ($values as $row) {
                     //printf("%s, %s\n", $row[0], $row[1]);
-                    if ( !empty( trim( $row[0] ) ) ){
+                    if ( !empty( trim( $row[1] ) ) ){
 
-                        $data[] = array('sku' => strtoupper($row[0]),
-                                        'regular_price' => $row[1],
-                                        'price' => $row[2],
+                        $data[] = array('name' => strtoupper($row[0]),
+                                        'sku' => strtoupper($row[1]),
+                                        'regular_price' => $row[2],
+                                        'price' => (isset($row[3]) ? $row[3] : ''),
                                         'fecha_de_actualizacion' => ''
                                 );
                     }
@@ -93,18 +94,22 @@ class DS8GoogleSheetWOO {
                   foreach ($data as &$row) :
                       $idproduct = wc_get_product_id_by_sku( $row['sku'] );
                       $product = wc_get_product($idproduct);
-
-                      if ( /*!empty($product->get_regular_price()) &&*/ !empty($row['regular_price']) ){
-                        $product->set_regular_price($row['regular_price']);
-                      }
-                      if ( /*!empty($product->get_sale_price()) &&*/ !empty($row['price']) ){
-                        $product->set_sale_price($row['price']);
-                      }
-                      $retorna = $product->save();
                       
-                      if ($retorna != 0){
-                        error_log('Product SKU:'.$row['sku'].' Actualizado');
-                        $row['fecha_de_actualizacion'] = ucfirst(wp_date ("F d Y H:i:s"));
+                      if (!is_bool($product)){
+                        if ( /*!empty($product->get_regular_price()) &&*/ !empty($row['regular_price']) ){
+                          $product->set_regular_price($row['regular_price']);
+                        }
+                        if ( /*!empty($product->get_sale_price()) &&*/ !empty($row['price'] && !$product->is_type( 'simple' )) ){
+                          $product->set_sale_price($row['price']);
+                        }
+                        $retorna = $product->save();
+
+                        if ($retorna != 0){
+                          error_log('Product SKU:'.$row['sku'].' Actualizado');
+                          $row['fecha_de_actualizacion'] = ucfirst(wp_date ("F d Y H:i:s"));
+                        }
+                      }else{
+                          $row['fecha_de_actualizacion'] = 'No se encuentra SKU';
                       }
                   endforeach;
                   error_log('Finalizada sincronización productos Woocommerce con Google Sheet API.');
@@ -207,7 +212,7 @@ class DS8GoogleSheetWOO {
 	 * @static
 	 */
 	public static function plugin_activation() {
-		if ( version_compare( $GLOBALS['wp_version'], DS8RELATEDPOSTS_MINIMUM_WP_VERSION, '<' ) ) {
+		if ( version_compare( $GLOBALS['wp_version'], DS8GOOGLE_SHEETS_WOO_MINIMUM_WP_VERSION, '<' ) ) {
 			load_plugin_textdomain( 'ds8relatedposts' );
                         
 			$message = '<strong>'.sprintf(esc_html__( 'DS8 Google Sheet %s requires WordPress %s or higher.' , 'ds8relatedposts'), DS8GOOGLE_SHEETS_WOO_VERSION, DS8GOOGLE_SHEETS_WOO_MINIMUM_WP_VERSION ).'</strong> '.sprintf(__('Please <a href="%1$s">upgrade WordPress</a> to a current version.', 'ds8relatedposts'), 'https://codex.wordpress.org/Upgrading_WordPress', 'https://wordpress.org/extend/plugins/ds8relatedposts/download/');
